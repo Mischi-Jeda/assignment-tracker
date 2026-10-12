@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router'; // Add this import at the top
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
@@ -12,6 +13,7 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function TabTwoScreen() {
+  const router = useRouter(); // Initialize router
   const safeAreaInsets = useSafeAreaInsets();
   const insets = {
     ...safeAreaInsets,
@@ -59,6 +61,19 @@ export default function TabTwoScreen() {
         </ThemedView>
 
         <ThemedView style={styles.sectionsWrapper}>
+          <Collapsible title="Assignment Tracker & Google Classroom">
+          <ThemedView type="backgroundElement" style={styles.collapsibleContent}>
+            <ThemedText type="small">
+              Sync your Google Classroom assignments or add custom tasks effortlessly.
+            </ThemedText>
+            <Pressable 
+              style={({ pressed }) => [styles.linkButton, { marginTop: 12, backgroundColor: '#2563eb' }, pressed && styles.pressed]}
+              onPress={() => router.push('/assignments' as any) }
+            >
+              <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Open Assignment Tracker</ThemedText>
+            </Pressable>
+          </ThemedView>
+        </Collapsible>
           <Collapsible title="File-based routing">
             <ThemedText type="small">
               This app has two screens: <ThemedText type="code">src/app/index.tsx</ThemedText> and{' '}
@@ -178,3 +193,5 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
 });
+
+
