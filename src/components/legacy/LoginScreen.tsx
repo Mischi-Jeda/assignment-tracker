@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
-import { styles } from '../styles';
+import { styles } from '../../styles/legacy';
+import { AppIcon } from '../icon-label';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -16,7 +17,7 @@ export default function LoginScreen({ onLogin, onNavigateSignUp, onNavigateForgo
   return (
     <View style={styles.card}>
       <View style={styles.avatarContainer}>
-        <Text style={styles.avatarIcon}>👤</Text>
+        <AppIcon name="fa-user" size={32} color="#2563eb" />
       </View>
       <Text style={styles.title}>HELLO MABUHAY!!</Text>
       <Text style={styles.subtitle}>Activity Tracker</Text>

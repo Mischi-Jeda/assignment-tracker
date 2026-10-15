@@ -5,32 +5,42 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  StyleSheet,
   Modal,
   TextInput,
   Pressable,
+  Platform,
+  StyleSheet,
 } from 'react-native';
 import { useTasks, ClassOption } from '@/context/task-context';
+import { S, Colors, Radius } from '@/styles/shared';
+import LoadingOverlay from '@/components/loading-overlay';
+import { AppIcon, IconLabel } from '@/components/icon-label';
 
 const COLOR_OPTIONS = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ca8a04', '#0891b2'];
-const ICON_OPTIONS = ['📚', '💻', '📐', '🧪', '🎨', '📊', '⚡', '📝'];
+const ICON_OPTIONS = ['fa-bookmark', 'fa-clipboard-list', 'fa-list', 'fa-square', 'fa-graduation-cap', 'fa-hourglass-half', 'fa-circle-check', 'fa-box-archive'];
+
+// ── Icon helper ─────────────────────────────────────────────────
+function FaIcon({ fa, emoji, size = 16, color = Colors.textPrimary }: {
+  fa: string; emoji: string; size?: number; color?: string;
+}) {
+  void emoji;
+  return <AppIcon name={fa} size={size} color={color} />;
+}
 
 export default function ClassesScreen() {
   const { classes, addClass, updateClass, archiveClass, deleteClass } = useTasks();
-
   const activeClasses = classes.filter((c) => !c.isArchived);
   const archivedClasses = classes.filter((c) => c.isArchived);
 
-  // Modal State for Add / Edit
+  const [isSaving, setIsSaving] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassOption | null>(null);
 
-  // Form Fields
   const [className, setClassName] = useState('');
   const [instructor, setInstructor] = useState('');
   const [room, setRoom] = useState('');
   const [selectedColor, setSelectedColor] = useState('#2563eb');
-  const [selectedIcon, setSelectedIcon] = useState('📚');
+  const [selectedIcon, setSelectedIcon] = useState('fa-bookmark');
 
   const openAddModal = () => {
     setEditingClass(null);
@@ -38,7 +48,7 @@ export default function ClassesScreen() {
     setInstructor('');
     setRoom('');
     setSelectedColor('#2563eb');
-    setSelectedIcon('📚');
+    setSelectedIcon('fa-bookmark');
     setModalVisible(true);
   };
 
@@ -47,34 +57,36 @@ export default function ClassesScreen() {
     setClassName(item.name);
     setInstructor(item.instructor);
     setRoom(item.room || '');
-    setSelectedColor(item.color || '#2563eb');
-    setSelectedIcon(item.icon || '📚');
+    setSelectedColor((item as any).color || '#2563eb');
+    setSelectedIcon((item as any).icon || 'fa-bookmark');
     setModalVisible(true);
   };
 
   const handleSaveClass = () => {
     if (!className.trim() || !instructor.trim()) return;
-
-    if (editingClass) {
-      updateClass({
-        ...editingClass,
-        name: className,
-        instructor,
-        room,
-        color: selectedColor,
-        icon: selectedIcon,
-      } as any);
-    } else {
-      addClass({
-        name: className,
-        instructor,
-        room: room || 'TBA',
-        color: selectedColor,
-        icon: selectedIcon,
-      } as any);
-    }
-
-    setModalVisible(false);
+    setIsSaving(true);
+    setTimeout(() => {
+      if (editingClass) {
+        updateClass({
+          ...editingClass,
+          name: className,
+          instructor,
+          room,
+          color: selectedColor,
+          icon: selectedIcon,
+        } as any);
+      } else {
+        addClass({
+          name: className,
+          instructor,
+          room: room || 'TBA',
+          color: selectedColor,
+          icon: selectedIcon,
+        } as any);
+      }
+      setModalVisible(false);
+      setIsSaving(false);
+    }, 400);
   };
 
   const handleDeleteClass = () => {
@@ -90,159 +102,188 @@ export default function ClassesScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.headerTitle}>Classes & Subjects</Text>
-        <Text style={styles.headerSubtitle}>Manage and view your enrolled classes.</Text>
+    <View style={S.screen}>
+      <ScrollView contentContainerStyle={S.scroll}>
 
-        {/* Active Classes */}
-        <Text style={styles.sectionHeader}>Active Classes ({activeClasses.length})</Text>
+        {/* ── Header ── */}
+        <View style={[S.row, { marginBottom: 4, gap: 8 }]}>
+          <FaIcon fa="fa-graduation-cap" emoji="🎓" size={20} color={Colors.primary} />
+          <Text style={S.pageTitle}>Classes & Subjects</Text>
+        </View>
+        <Text style={S.pageSubtitle}>Manage and view your enrolled classes.</Text>
+
+        {/* ── Active classes ── */}
+        <View style={[S.row, { marginBottom: 12, gap: 6 }]}>
+          <FaIcon fa="fa-bookmark" emoji="🔖" size={14} color={Colors.primary} />
+          <Text style={[S.sectionHeaderFirst, { margin: 0 }]}>
+            Active Classes ({activeClasses.length})
+          </Text>
+        </View>
+
         {activeClasses.length === 0 ? (
-          <Text style={styles.emptyText}>No active classes found.</Text>
+          <Text style={S.emptyText}>No active classes found.</Text>
         ) : (
           activeClasses.map((item: any) => (
             <TouchableOpacity
               key={item.id}
-              style={[styles.classCard, { borderLeftColor: item.color || '#2563eb' }]}
+              style={[styles.classCard, { borderLeftColor: item.color || Colors.primary }]}
               onPress={() => openEditModal(item)}
+              activeOpacity={0.75}
             >
-              <View style={[styles.classIconCircle, { backgroundColor: (item.color || '#2563eb') + '20' }]}>
-                <Text style={{ fontSize: 22 }}>{item.icon || '📚'}</Text>
+              <View style={[styles.classIconCircle, { backgroundColor: (item.color || Colors.primary) + '20' }]}>
+                <AppIcon name={item.icon || 'fa-bookmark'} size={20} color={item.color || Colors.primary} />
               </View>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={styles.className} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.classInstructor} numberOfLines={1}>Instructor: {item.instructor}</Text>
-                <Text style={styles.classRoom} numberOfLines={1}>{item.room || 'TBA'}</Text>
+                <Text style={styles.classInstructor} numberOfLines={1}>
+                  <FaIcon fa="fa-chalkboard-user" emoji="👨‍🏫" size={11} color={Colors.textMedium} />
+                  {' '}{item.instructor}
+                </Text>
+                <Text style={styles.classRoom} numberOfLines={1}>
+                  <FaIcon fa="fa-location-dot" emoji="📍" size={11} color={Colors.textSecondary} />
+                  {' '}{item.room || 'TBA'}
+                </Text>
               </View>
+              <FaIcon fa="fa-chevron-right" emoji="›" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
           ))
         )}
 
-        {/* Archived Classes */}
-        <Text style={[styles.sectionHeader, { marginTop: 24 }]}>
-          Archived Classes ({archivedClasses.length})
-        </Text>
+        {/* ── Archived classes ── */}
+        <View style={[S.row, { marginBottom: 12, marginTop: 24, gap: 6 }]}>
+          <FaIcon fa="fa-box-archive" emoji="📦" size={14} color={Colors.textSecondary} />
+          <Text style={[S.sectionHeaderFirst, { margin: 0, color: Colors.textSecondary }]}>
+            Archived Classes ({archivedClasses.length})
+          </Text>
+        </View>
+
         {archivedClasses.length === 0 ? (
-          <Text style={styles.emptyText}>No archived classes.</Text>
+          <Text style={S.emptyText}>No archived classes.</Text>
         ) : (
           archivedClasses.map((item: any) => (
             <TouchableOpacity
               key={item.id}
               style={[styles.classCard, styles.archivedCard]}
               onPress={() => openEditModal(item)}
+              activeOpacity={0.75}
             >
-              <View style={[styles.classIconCircle, { backgroundColor: '#e2e8f0' }]}>
-                <Text style={{ fontSize: 22 }}>{item.icon || '📁'}</Text>
+              <View style={[styles.classIconCircle, { backgroundColor: Colors.inputBg }]}>
+                <AppIcon name={item.icon || 'fa-box-archive'} size={20} color={Colors.textSecondary} />
               </View>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={[styles.className, { color: '#64748b' }]} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.classInstructor} numberOfLines={1}>Instructor: {item.instructor}</Text>
+                <Text style={[styles.className, { color: Colors.textSecondary }]} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={styles.classInstructor} numberOfLines={1}>{item.instructor}</Text>
                 <Text style={styles.classRoom} numberOfLines={1}>{item.room || 'TBA'}</Text>
               </View>
+              <FaIcon fa="fa-chevron-right" emoji="›" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
           ))
         )}
       </ScrollView>
 
-      {/* Floating Action Button (+) */}
-      <TouchableOpacity style={styles.fab} onPress={openAddModal}>
-        <Text style={styles.fabText}>+</Text>
+      {/* ── FAB ── */}
+      <TouchableOpacity style={S.fab} onPress={openAddModal} activeOpacity={0.85}>
+        <IconLabel name="fa-plus" label="Add" size={19} color="#fff" />
       </TouchableOpacity>
 
-      {/* Modal: Add or Edit Class */}
+      {/* ── Loading overlay ── */}
+      <LoadingOverlay visible={isSaving} message="Saving…" />
+
+      {/* ══ Modal: Add / Edit Class ══ */}
       <Modal visible={modalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
+        <View style={S.modalOverlay}>
+          <View style={[S.modalCard, { maxHeight: '92%' }]}>
+            <Text style={S.modalTitle}>
               {editingClass ? 'Edit Subject / Class' : 'Add New Subject'}
             </Text>
 
-            <Text style={styles.fieldLabel}>Subject / Class Name *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Quantitative Research"
-              value={className}
-              onChangeText={setClassName}
-            />
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={S.fieldLabel}>Subject / Class Name *</Text>
+              <TextInput
+                style={S.input}
+                placeholder="e.g. Quantitative Research"
+                value={className}
+                onChangeText={setClassName}
+                placeholderTextColor={Colors.textMuted}
+              />
 
-            <Text style={styles.fieldLabel}>Instructor Name *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Ed Neil Maratas"
-              value={instructor}
-              onChangeText={setInstructor}
-            />
+              <Text style={S.fieldLabel}>Instructor Name *</Text>
+              <TextInput
+                style={S.input}
+                placeholder="e.g. Ed Neil Maratas"
+                value={instructor}
+                onChangeText={setInstructor}
+                placeholderTextColor={Colors.textMuted}
+              />
 
-            <Text style={styles.fieldLabel}>Room / Location (Optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Room 302 or Online"
-              value={room}
-              onChangeText={setRoom}
-            />
+              <Text style={S.fieldLabel}>Room / Location (Optional)</Text>
+              <TextInput
+                style={S.input}
+                placeholder="e.g. Room 302 or Online"
+                value={room}
+                onChangeText={setRoom}
+                placeholderTextColor={Colors.textMuted}
+              />
 
-            <Text style={styles.fieldLabel}>Theme Color</Text>
-            <View style={styles.pickerRow}>
-              {COLOR_OPTIONS.map((color) => (
-                <Pressable
-                  key={color}
-                  style={[
-                    styles.colorCircle,
-                    { backgroundColor: color },
-                    selectedColor === color && styles.selectedColorCircle,
-                  ]}
-                  onPress={() => setSelectedColor(color)}
-                />
-              ))}
-            </View>
+              {/* Color picker */}
+              <Text style={S.fieldLabel}>Theme Color</Text>
+              <View style={styles.pickerRow}>
+                {COLOR_OPTIONS.map((color) => (
+                  <Pressable
+                    key={color}
+                    style={[
+                      styles.colorCircle,
+                      { backgroundColor: color },
+                      selectedColor === color && styles.selectedColorCircle,
+                    ]}
+                    onPress={() => setSelectedColor(color)}
+                  />
+                ))}
+              </View>
 
-            <Text style={styles.fieldLabel}>Icon</Text>
-            <View style={styles.pickerRow}>
-              {ICON_OPTIONS.map((icon) => (
-                <Pressable
-                  key={icon}
-                  style={[
-                    styles.iconBox,
-                    selectedIcon === icon && styles.selectedIconBox,
-                  ]}
-                  onPress={() => setSelectedIcon(icon)}
-                >
-                  <Text style={{ fontSize: 18 }}>{icon}</Text>
-                </Pressable>
-              ))}
-            </View>
+              {/* Icon picker */}
+              <Text style={S.fieldLabel}>Icon</Text>
+              <View style={styles.pickerRow}>
+                {ICON_OPTIONS.map((icon) => (
+                  <Pressable
+                    key={icon}
+                    style={[styles.iconBox, selectedIcon === icon && styles.selectedIconBox]}
+                    onPress={() => setSelectedIcon(icon)}
+                  >
+                    <AppIcon name={icon} size={18} color={Colors.primary} />
+                  </Pressable>
+                ))}
+              </View>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
-              {editingClass ? (
-                <View style={{ flexDirection: 'row', gap: 6 }}>
-                  <TouchableOpacity style={styles.archiveButton} onPress={handleArchiveClass}>
-                    <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 12 }}>
-                      {editingClass.isArchived ? 'Restore' : 'Archive'}
-                    </Text>
+              {/* Action buttons */}
+              <View style={[S.rowSpaceBetween, { marginTop: 18, marginBottom: 8 }]}>
+                {editingClass ? (
+                  <View style={[S.row, { gap: 6 }]}>
+                    <TouchableOpacity style={S.btnWarning} onPress={handleArchiveClass}>
+                      <Text style={S.btnWhiteText}>
+                        {editingClass.isArchived ? 'Restore' : 'Archive'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={S.btnDanger} onPress={handleDeleteClass}>
+                      <Text style={S.btnWhiteText}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View />
+                )}
+
+                <View style={[S.row, { gap: 8 }]}>
+                  <TouchableOpacity style={S.btnCancel} onPress={() => setModalVisible(false)}>
+                    <Text style={S.btnCancelText}>Cancel</Text>
                   </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteClass}>
-                    <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 12 }}>Delete</Text>
+                  <TouchableOpacity style={S.btnPrimary} onPress={handleSaveClass}>
+                    <Text style={S.btnPrimaryText}>{editingClass ? 'Save' : 'Add'}</Text>
                   </TouchableOpacity>
                 </View>
-              ) : (
-                <View />
-              )}
-
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => setModalVisible(false)}
-                >
-                  <Text style={{ color: '#64748b' }}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.saveButton} onPress={handleSaveClass}>
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                    {editingClass ? 'Save' : 'Add'}
-                  </Text>
-                </TouchableOpacity>
               </View>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -251,17 +292,11 @@ export default function ClassesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  scroll: { padding: 16, paddingTop: 44, paddingBottom: 110, flexGrow: 1 },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#0f172a' },
-  headerSubtitle: { fontSize: 13, color: '#64748b', marginBottom: 20, fontStyle: 'italic' },
-  sectionHeader: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginBottom: 12 },
-  emptyText: { color: '#94a3b8', fontStyle: 'italic', marginBottom: 12, textAlign: 'center' },
   classCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
+    backgroundColor: Colors.cardBg,
+    borderRadius: Radius.lg,
     padding: 14,
     marginBottom: 10,
     shadowColor: '#000',
@@ -269,10 +304,12 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
     borderLeftWidth: 5,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
   },
   archivedCard: {
-    backgroundColor: '#f8fafc',
-    borderLeftColor: '#94a3b8',
+    backgroundColor: Colors.pageBg,
+    borderLeftColor: Colors.textMuted,
     opacity: 0.8,
   },
   classIconCircle: {
@@ -283,49 +320,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  className: { fontSize: 15, fontWeight: 'bold', color: '#0f172a' },
-  classInstructor: { fontSize: 12, color: '#475569', marginTop: 2 },
-  classRoom: { fontSize: 11, color: '#64748b', marginTop: 2 },
-  fab: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#fbbf24',
+  className: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+  },
+  classInstructor: {
+    fontSize: 12,
+    color: Colors.textMedium,
+    marginTop: 3,
+  },
+  classRoom: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginVertical: 6,
+  },
+  colorCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
+  selectedColorCircle: {
+    borderWidth: 3,
+    borderColor: Colors.textPrimary,
+  },
+  iconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.inputBg,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
   },
-  fabText: { fontSize: 28, color: '#ffffff', fontWeight: 'bold' },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
+  selectedIconBox: {
+    backgroundColor: Colors.primaryLight,
+    borderWidth: 2,
+    borderColor: Colors.primary,
   },
-  modalContent: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    maxHeight: '90%',
-  },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 14, color: '#0f172a' },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 4, marginTop: 8 },
-  input: { backgroundColor: '#f1f5f9', padding: 10, borderRadius: 8, fontSize: 14, marginBottom: 4, color: '#0f172a' },
-  pickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 4 },
-  colorCircle: { width: 28, height: 28, borderRadius: 14 },
-  selectedColorCircle: { borderWidth: 3, borderColor: '#0f172a' },
-  iconBox: { width: 36, height: 36, borderRadius: 8, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center' },
-  selectedIconBox: { backgroundColor: '#dbeafe', borderWidth: 2, borderColor: '#2563eb' },
-  cancelButton: { padding: 10, justifyContent: 'center' },
-  saveButton: { backgroundColor: '#2563eb', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, justifyContent: 'center' },
-  deleteButton: { backgroundColor: '#ef4444', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, justifyContent: 'center' },
-  archiveButton: { backgroundColor: '#f59e0b', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, justifyContent: 'center' },
 });

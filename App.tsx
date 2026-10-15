@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { SafeAreaView, ScrollView } from 'react-native';
-import { styles } from './styles';
+import { styles } from './src/styles/legacy';
 
-import LoginScreen from './components/LoginScreen';
-import SignUpScreen from './components/SignUpScreen';
-import ForgotPasswordScreen from './components/ForgotPasswordScreen';
-import DashboardScreen from './components/DashboardScreen';
-import ProfileScreen from './components/ProfileScreen';
-import SettingsScreen from './components/SettingsScreen';
-import MessagesScreen from './components/MessagesScreen';
+import LoginScreen from './src/components/legacy/LoginScreen';
+import SignUpScreen from './src/components/legacy/SignUpScreen';
+import ForgotPasswordScreen from './src/components/legacy/ForgotPasswordScreen';
+import DashboardScreen from './src/components/legacy/DashboardScreen';
+import ProfileScreen from './src/components/legacy/ProfileScreen';
+import SettingsScreen from './src/components/legacy/SettingsScreen';
+import MessagesScreen from './src/components/legacy/MessagesScreen';
 
 type ScreenName = 'Login' | 'SignUp' | 'ForgotPassword' | 'Dashboard' | 'Profile' | 'Settings' | 'Messages';
 

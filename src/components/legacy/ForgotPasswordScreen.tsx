@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { styles } from '../styles';
+import { styles } from '../../styles/legacy';
 
 interface ForgotPasswordScreenProps {
   onNavigateLogin: () => void;

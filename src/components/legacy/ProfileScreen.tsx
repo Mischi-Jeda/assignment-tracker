@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { styles } from '../styles';
+import { View, Text, TextInput, TouchableOpacity, Alert, Switch } from 'react-native';
+import { styles } from '../../styles/legacy';
 
 interface ProfileScreenProps {
   userName: string;
@@ -10,6 +10,7 @@ interface ProfileScreenProps {
 
 export default function ProfileScreen({ userName, setUserName, onNavigateDashboard }: ProfileScreenProps) {
   const [email, setEmail] = useState<string>('jade@example.com');
+  const [notifications, setNotifications] = useState(true);
 
   const handleSave = () => {
     Alert.alert('Success', 'Profile updated successfully!');
@@ -25,6 +26,14 @@ export default function ProfileScreen({ userName, setUserName, onNavigateDashboa
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Name</Text>
           <TextInput style={styles.input} value={userName} onChangeText={setUserName} />
+        </View>
+
+        <View style={styles.settingRow}>
+          <View>
+            <Text style={styles.settingTitle}>Push Notifications</Text>
+            <Text style={styles.settingSubtitle}>Receive app alerts</Text>
+          </View>
+          <Switch value={notifications} onValueChange={setNotifications} trackColor={{ false: '#cbd5e1', true: '#2563eb' }} />
         </View>
 
         <View style={styles.inputContainer}>

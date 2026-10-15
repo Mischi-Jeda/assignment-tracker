@@ -1,10 +1,29 @@
 // src/app/_layout.tsx
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  Alert,
+} from 'react-native';
 import { useRouter, usePathname, Tabs } from 'expo-router';
 import { TaskProvider } from '../context/task-context';
 import { UserProvider, useUser } from '../context/user-context';
+import { Colors, Radius, S } from '../styles/shared';
+import { AppIcon, IconLabel } from '@/components/icon-label';
 
+// ─── Font Awesome CDN injection (web only) ───────────────────────
+// On native the icon labels carry the meaning; FA icons are a web enhancement.
+const NAV_ITEMS = [
+  { route: '/', label: 'Home', faIcon: 'fa-house' },
+  { route: '/assignments', label: 'Tasks', faIcon: 'fa-clipboard-list' },
+  { route: '/classes', label: 'Classes', faIcon: 'fa-graduation-cap' },
+  { route: '/profile', label: 'Profile', faIcon: 'fa-circle-user' },
+] as const;
+
+// ─── NavIcon ─────────────────────────────────────────────────────
 function MainLayout() {
   const router = useRouter();
   const pathname = usePathname();
@@ -32,27 +51,35 @@ function MainLayout() {
     setIsLoggedIn(true);
   };
 
+  // ── Login / Sign-up screen ──────────────────────────────────────
   if (!isLoggedIn) {
     return (
       <View style={styles.loginContainer}>
         <View style={styles.loginCard}>
+          {/* Avatar */}
           <View style={styles.avatarContainer}>
-            <Text style={{ fontSize: 32 }}>👤</Text>
+            <AppIcon name="fa-circle-user" size={28} color={Colors.primary} />
           </View>
-          <Text style={styles.loginTitle}>{isSignUp ? 'Create Account' : 'HELLO MABUHAY!'}</Text>
-          <Text style={styles.loginSubtitle}>{isSignUp ? 'Just a simple signup' : 'simple log in'}</Text>
 
-          <View style={styles.inputContainer}>
+          <Text style={styles.loginTitle}>
+            {isSignUp ? 'Create Account' : 'HELLO MABUHAY!'}
+          </Text>
+          <Text style={styles.loginSubtitle}>
+            {isSignUp ? 'Just a simple signup' : 'simple log in'}
+          </Text>
+
+          <View style={{ marginBottom: 16 }}>
             <Text style={styles.label}>Email or Username</Text>
             <TextInput
               style={styles.input}
               value={emailInput}
               onChangeText={setEmailInput}
               placeholder="Enter email or username"
+              placeholderTextColor={Colors.textMuted}
             />
           </View>
 
-          <View style={styles.inputContainer}>
+          <View style={{ marginBottom: 16 }}>
             <Text style={styles.label}>Password</Text>
             <TextInput
               style={styles.input}
@@ -60,19 +87,24 @@ function MainLayout() {
               onChangeText={setPasswordInput}
               secureTextEntry
               placeholder="Enter password"
+              placeholderTextColor={Colors.textMuted}
             />
           </View>
 
           <TouchableOpacity style={styles.primaryButton} onPress={handleAuth}>
-            <Text style={styles.primaryButtonText}>{isSignUp ? 'Sign Up' : 'Login'}</Text>
+            <Text style={styles.primaryButtonText}>
+              {isSignUp ? 'Sign Up' : 'Login'}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={{ marginTop: 20, alignItems: 'center' }} 
+          <TouchableOpacity
+            style={{ marginTop: 20, alignItems: 'center' }}
             onPress={() => setIsSignUp(!isSignUp)}
           >
-            <Text style={{ color: '#2563eb', fontWeight: '600' }}>
-              {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
+            <Text style={{ color: Colors.primary, fontWeight: '600' }}>
+              {isSignUp
+                ? 'Already have an account? Login'
+                : "Don't have an account? Sign Up"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -80,54 +112,44 @@ function MainLayout() {
     );
   }
 
+  // ── Main app layout ─────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      {/* Main Content Area */}
+      {/* Screen content */}
       <View style={styles.content}>
         <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }} />
       </View>
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
-        <TouchableOpacity 
-          style={[styles.navItem, (pathname === '/' || pathname === '') && styles.activeNav]} 
-          onPress={() => router.push('/')}
-        >
-          <Text style={styles.navIcon}>🏠</Text>
-        </TouchableOpacity>
+        {NAV_ITEMS.map((item) => {
+          const isActive =
+            item.route === '/'
+              ? pathname === '/' || pathname === ''
+              : pathname === item.route;
 
-        <TouchableOpacity 
-          style={[styles.navItem, pathname === '/assignments' && styles.activeNav]} 
-          onPress={() => router.push('/assignments')}
-        >
-          <Text style={styles.navIcon}>🎯</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.navItem, pathname === '/classes' && styles.activeNav]} 
-          onPress={() => router.push('/classes')}
-        >
-          <Text style={styles.navIcon}>👥</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.navItem, pathname === '/profile' && styles.activeNav]} 
-          onPress={() => router.push('/profile')}
-        >
-          <Text style={styles.navIcon}>👤</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.navItem, pathname === '/settings' && styles.activeNav]} 
-          onPress={() => router.push('/settings')}
-        >
-          <Text style={styles.navIcon}>⚙️</Text>
-        </TouchableOpacity>
+          return (
+            <TouchableOpacity
+              key={item.route}
+              style={[styles.navItem, isActive && styles.activeNav]}
+              onPress={() => router.push(item.route)}
+              activeOpacity={0.75}
+            >
+              <IconLabel
+                name={item.faIcon}
+                label={item.label}
+                color={isActive ? Colors.navActiveIcon : Colors.navInactiveIcon}
+                labelStyle={[styles.navLabel, isActive && styles.navLabelActive]}
+              />
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
 }
 
+// ─── Root ─────────────────────────────────────────────────────────
 export default function RootLayout() {
   return (
     <UserProvider>
@@ -138,45 +160,117 @@ export default function RootLayout() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
+  container: {
+    flex: 1,
     flexDirection: 'column',
-    backgroundColor: '#f8fafc' 
+    backgroundColor: Colors.pageBg,
   },
-  content: { 
-    flex: 1 
+  content: {
+    flex: 1,
   },
-  bottomNav: { 
-    height: 65, 
-    backgroundColor: '#ffffff', 
-    borderTopWidth: 1, 
-    borderTopColor: '#e2e8f0', 
-    flexDirection: 'row', 
-    justifyContent: 'space-around', 
+
+  // Bottom nav
+  bottomNav: {
+    height: 68,
+    backgroundColor: Colors.navBg,
+    borderTopWidth: 1,
+    borderTopColor: Colors.navBorder,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
     paddingBottom: 4,
+    paddingTop: 4,
   },
-  navItem: { 
-    padding: 10, 
-    borderRadius: 8,
+  navItem: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 6,
+    borderRadius: Radius.sm,
+    marginHorizontal: 4,
   },
-  activeNav: { 
-    backgroundColor: '#f3e8ff' 
+  activeNav: {
+    backgroundColor: Colors.navActive,
   },
-  navIcon: { 
-    fontSize: 22 
+  navLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: Colors.navInactiveIcon,
+    marginTop: 1,
   },
-  loginContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' },
-  loginCard: { width: '90%', maxWidth: 400, backgroundColor: '#ffffff', borderRadius: 24, padding: 32, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 },
-  avatarContainer: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#dbeafe', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 16 },
-  loginTitle: { fontSize: 22, fontWeight: 'bold', color: '#0f172a', textAlign: 'center' },
-  loginSubtitle: { fontSize: 14, color: '#64748b', textAlign: 'center', marginTop: 4, marginBottom: 24 },
-  inputContainer: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '600', color: '#1e293b', marginBottom: 6 },
-  input: { backgroundColor: '#f1f5f9', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#0f172a' },
-  primaryButton: { backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 10 },
-  primaryButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  navLabelActive: {
+    color: Colors.navActiveIcon,
+    fontWeight: '700',
+  },
+
+  // Login screen
+  loginContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.pageBg,
+  },
+  loginCard: {
+    width: '90%',
+    maxWidth: 400,
+    backgroundColor: Colors.cardBg,
+    borderRadius: Radius.xl,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  avatarContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: Colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  loginTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+  loginSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: Colors.inputBg,
+    borderRadius: Radius.md,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: Colors.textPrimary,
+  },
+  primaryButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // inputContainer lives in S (shared), referenced directly
 });
