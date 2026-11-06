@@ -1,5 +1,6 @@
 // src/context/user-context.tsx
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export interface UserProfile {
   name: string;
@@ -7,23 +8,70 @@ export interface UserProfile {
 }
 
 interface UserContextType {
-  user: UserProfile;
-  setUser: (user: UserProfile) => void;
+  user: UserProfile | null;
+  setUser: (user: UserProfile | null) => void;
   isLoggedIn: boolean;
   setIsLoggedIn: (status: boolean) => void;
+  isLoadingSession: boolean;
+  signOut: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<UserProfile>({
-    name: 'Mischi Jeda Jacinto Elumba',
-    email: 'jade@gmail.com',
-  });
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
+
+  useEffect(() => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const username = session.user.user_metadata?.username || 'User';
+        setUser({
+          name: username,
+          email: session.user.email || '',
+        });
+        setIsLoggedIn(true);
+      } else {
+        setIsLoggedIn(false);
+        setUser(null);
+      }
+      setIsLoadingSession(false);
+    });
+
+    // Listen to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const username = session.user.user_metadata?.username || 'User';
+        setUser({
+          name: username,
+          email: session.user.email || '',
+        });
+        setIsLoggedIn(true);
+      } else {
+        setIsLoggedIn(false);
+        setUser(null);
+      }
+      setIsLoadingSession(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signOut = async () => {
+    // Immediately clear state first so UI updates instantly
+    setIsLoggedIn(false);
+    setUser(null);
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
-    <UserContext.Provider value={{ user, setUser, isLoggedIn, setIsLoggedIn }}>
+    <UserContext.Provider value={{ user, setUser, isLoggedIn, setIsLoggedIn, isLoadingSession, signOut }}>
       {children}
     </UserContext.Provider>
   );

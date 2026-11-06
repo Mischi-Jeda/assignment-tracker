@@ -1,5 +1,8 @@
 // src/context/task-context.tsx
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { classService } from '@/services/classService';
+import { assignmentService } from '@/services/assignmentService';
+import { useUser } from './user-context';
 
 export interface Subtask {
   id: string;
@@ -29,156 +32,130 @@ export interface Task {
 interface TaskContextType {
   tasks: Task[];
   classes: ClassOption[];
-  addTask: (task: Omit<Task, 'id' | 'status'>) => void;
-  updateTask: (updatedTask: Task) => void;
-  deleteTask: (id: string) => void;
-  toggleTaskStatus: (id: string, currentStatus: Task['status']) => void;
-  toggleSubtask: (taskId: string, subtaskId: string) => void;
-  addClass: (newClass: Omit<ClassOption, 'id'>) => void;
-  updateClass: (updatedClass: ClassOption) => void;
-  archiveClass: (classId: string) => void;
-  deleteClass: (classId: string) => void;
+  addTask: (task: Omit<Task, 'id' | 'status'>) => Promise<void>;
+  updateTask: (updatedTask: Task) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  toggleTaskStatus: (id: string, currentStatus: Task['status']) => Promise<void>;
+  toggleSubtask: (taskId: string, subtaskId: string) => Promise<void>;
+  addClass: (newClass: Omit<ClassOption, 'id'>) => Promise<void>;
+  updateClass: (updatedClass: ClassOption) => Promise<void>;
+  archiveClass: (classId: string) => Promise<void>;
+  deleteClass: (classId: string) => Promise<void>;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [classes, setClasses] = useState<ClassOption[]>([
-    { id: '1', name: 'Quantitative Research', instructor: 'Ed Neil Maratas', room: 'Room 302', isArchived: false },
-    { id: '2', name: 'Advance Database Systems', instructor: 'Mark Mascardo', room: 'Lab 2', isArchived: false },
-    { id: '3', name: 'Information Systems Architecture', instructor: 'Department Faculty', room: 'Online', isArchived: false },
-    { id: '4', name: 'Data Structures and Algorithms', instructor: 'Previous Instructor', room: 'Lab 1', isArchived: true },
-  ]);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const { isLoggedIn } = useUser(); // <-- get isLoggedIn from user context
 
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      title: 'Laboratory Exercise 3',
-      subject: 'Quantitative Research',
-      instructor: 'Ed Neil Maratas',
-      description: 'Complete data collection section and summary analysis.',
-      subtasks: [
-        { id: 's1', title: 'Gather survey samples', completed: true },
-        { id: 's2', title: 'Calculate mean and standard deviation', completed: false },
-      ],
-      dueDate: '2026-10-14',
-      status: 'incomplete',
-    },
-    {
-      id: '2',
-      title: 'Activity 4 - DB Triggers',
-      subject: 'Advance Database Systems',
-      instructor: 'Mark Mascardo',
-      description: 'Write PL/pgSQL BEFORE and AFTER trigger functions.',
-      subtasks: [],
-      dueDate: '2026-10-15',
-      status: 'incomplete',
-    },
-    {
-      id: '3',
-      title: 'Midterm Project Proposal',
-      subject: 'Information Systems Architecture',
-      instructor: 'Department Faculty',
-      description: 'System architectural overview draft.',
-      subtasks: [],
-      dueDate: '2026-10-01',
-      status: 'completed',
-    },
-  ]);
+  useEffect(() => {
+    if (isLoggedIn) {
+      loadData();
+    } else {
+      setTasks([]);
+      setClasses([]);
+    }
+  }, [isLoggedIn]);
 
-  const addTask = (newTaskData: Omit<Task, 'id' | 'status'>) => {
-    const newTask: Task = {
-      ...newTaskData,
-      id: Date.now().toString(),
-      status: 'incomplete',
-    };
-    setTasks((prev) => [newTask, ...prev]);
-  };
-
-  const updateTask = (updatedTask: Task) => {
-    setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
-  };
-
-  const deleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  const toggleTaskStatus = (id: string, currentStatus: Task['status']) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === id) {
-          let nextStatus: Task['status'] = 'completed';
-          if (currentStatus === 'incomplete') nextStatus = 'completed';
-          else if (currentStatus === 'completed') nextStatus = 'archived';
-          else nextStatus = 'incomplete';
-          return { ...t, status: nextStatus };
-        }
-        return t;
-      })
-    );
-  };
-
-  const toggleSubtask = (taskId: string, subtaskId: string) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === taskId) {
-          return {
-            ...t,
-            subtasks: t.subtasks.map((s) =>
-              s.id === subtaskId ? { ...s, completed: !s.completed } : s
-            ),
-          };
-        }
-        return t;
-      })
-    );
-  };
-
-  // Class Management Handlers
-  const addClass = (newClass: Omit<ClassOption, 'id'>) => {
-    const createdClass: ClassOption = {
-      ...newClass,
-      id: Date.now().toString(),
-      isArchived: false,
-    };
-    setClasses((prev) => [...prev, createdClass]);
-  };
-
-  const updateClass = (updatedClass: ClassOption) => {
-    setClasses((prev) => prev.map((c) => (c.id === updatedClass.id ? updatedClass : c)));
-    // Sync instructor/name updates to associated tasks
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.subject === updatedClass.name) {
-          return { ...t, instructor: updatedClass.instructor };
-        }
-        return t;
-      })
-    );
-  };
-
-  const archiveClass = (classId: string) => {
-    const targetClass = classes.find((c) => c.id === classId);
-    if (!targetClass) return;
-
-    // Toggle class archived status
-    setClasses((prev) =>
-      prev.map((c) => (c.id === classId ? { ...c, isArchived: !c.isArchived } : c))
-    );
-
-    // Archive all tasks under this subject automatically
-    if (!targetClass.isArchived) {
-      setTasks((prev) =>
-        prev.map((t) => (t.subject === targetClass.name ? { ...t, status: 'archived' } : t))
-      );
+  // ... rest of your code
+  const loadData = async () => {
+    try {
+      const [fetchedClasses, fetchedTasks] = await Promise.all([
+        classService.getClasses(),
+        assignmentService.getAssignments(),
+      ]);
+      setClasses(fetchedClasses);
+      setTasks(fetchedTasks);
+    } catch (error) {
+      console.error('Error loading Supabase data:', error);
     }
   };
 
-  const deleteClass = (classId: string) => {
+  const addTask = async (newTaskData: Omit<Task, 'id' | 'status'>) => {
+    try {
+      const created = await assignmentService.addTask(newTaskData);
+      setTasks((prev) => [created, ...prev]);
+    } catch (error) {
+      console.error('Error adding task:', error);
+    }
+  };
+
+  const updateTask = async (updatedTask: Task) => {
+    try {
+      await assignmentService.updateTask(updatedTask);
+      setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
+  };
+
+  const deleteTask = async (id: string) => {
+    try {
+      await assignmentService.deleteTask(id);
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  };
+
+  const toggleTaskStatus = async (id: string, currentStatus: Task['status']) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+
+    let nextStatus: Task['status'] = 'completed';
+    if (currentStatus === 'incomplete') nextStatus = 'completed';
+    else if (currentStatus === 'completed') nextStatus = 'archived';
+    else nextStatus = 'incomplete';
+
+    const updated = { ...task, status: nextStatus };
+    await updateTask(updated);
+  };
+
+  const toggleSubtask = async (taskId: string, subtaskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const updatedSubtasks = task.subtasks.map((s) =>
+      s.id === subtaskId ? { ...s, completed: !s.completed } : s
+    );
+    const updated = { ...task, subtasks: updatedSubtasks };
+    await updateTask(updated);
+  };
+
+  const addClass = async (newClassData: Omit<ClassOption, 'id'>) => {
+    try {
+      const created = await classService.addClass(newClassData);
+      setClasses((prev) => [...prev, created]);
+    } catch (error) {
+      console.error('Error adding class:', error);
+    }
+  };
+
+  const updateClass = async (updatedClass: ClassOption) => {
+    try {
+      await classService.updateClass(updatedClass);
+      setClasses((prev) => prev.map((c) => (c.id === updatedClass.id ? updatedClass : c)));
+    } catch (error) {
+      console.error('Error updating class:', error);
+    }
+  };
+
+  const archiveClass = async (classId: string) => {
     const targetClass = classes.find((c) => c.id === classId);
-    setClasses((prev) => prev.filter((c) => c.id !== classId));
-    if (targetClass) {
-      setTasks((prev) => prev.filter((t) => t.subject !== targetClass.name));
+    if (!targetClass) return;
+
+    const updated = { ...targetClass, isArchived: !targetClass.isArchived };
+    await updateClass(updated);
+  };
+
+  const deleteClass = async (classId: string) => {
+    try {
+      await classService.deleteClass(classId);
+      setClasses((prev) => prev.filter((c) => c.id !== classId));
+    } catch (error) {
+      console.error('Error deleting class:', error);
     }
   };
 
@@ -209,6 +186,5 @@ export const useTasks = () => {
   return context;
 };
 
-// Export helper for active classes dropdowns across home/assignments
 export const ACTIVE_CLASSES = (classesList: ClassOption[]) =>
   classesList.filter((c) => !c.isArchived);

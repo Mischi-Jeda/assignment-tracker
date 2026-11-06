@@ -29,16 +29,15 @@ function Icon({ fa, emoji, size = 18, color = Colors.primary }: {
 }
 
 export default function ProfileScreen() {
-  const { user, setUser, setIsLoggedIn } = useUser();
+  const { user, setUser, signOut } = useUser();
   const { tasks, classes } = useTasks();
 
   // ── Profile editing ──────────────────────────────────────────────
   const [isEditing, setIsEditing] = useState(false);
-  const [nameInput, setNameInput] = useState(user.name);
-  const [emailInput, setEmailInput] = useState(user.email);
+  const [usernameInput, setUsernameInput] = useState((user as any)?.username || '');
   const [isSaving, setIsSaving] = useState(false);
 
-  // ── Settings (moved from Settings screen) ───────────────────────
+  // ── Settings ────────────────────────────────────────────────────
   const [pushNotifications, setPushNotifications] = useState(true);
 
   // ── Stats ────────────────────────────────────────────────────────
@@ -48,29 +47,21 @@ export default function ProfileScreen() {
   const archivedCount = tasks.filter((t) => t.status === 'archived').length;
 
   const handleSaveProfile = () => {
-    if (!nameInput.trim() || !emailInput.trim()) return;
+    if (!usernameInput.trim()) return;
     setIsSaving(true);
-    // Simulate a brief save delay so the loading overlay is visible
     setTimeout(() => {
-      setUser({ name: nameInput, email: emailInput });
+      setUser({ ...(user as any), username: usernameInput });
       setIsEditing(false);
       setIsSaving(false);
     }, 600);
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: () => setIsLoggedIn(false),
-        },
-      ],
-    );
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Direct logout error:', error);
+    }
   };
 
   return (
@@ -91,14 +82,13 @@ export default function ProfileScreen() {
           {/* View / Edit toggle */}
           {!isEditing ? (
             <View style={{ flex: 1 }}>
-              <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
-              <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
+            <Text style={styles.userName} numberOfLines={1}>{(user as any)?.username || 'User'}</Text>
+            <Text style={styles.userEmail} numberOfLines={1}>@{(user as any)?.username || 'username'}</Text>
 
               <TouchableOpacity
                 style={styles.editBtn}
                 onPress={() => {
-                  setNameInput(user.name);
-                  setEmailInput(user.email);
+                  setUsernameInput((user as any)?.username || '');
                   setIsEditing(true);
                 }}
               >
@@ -108,22 +98,14 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <View style={{ flex: 1, gap: 8 }}>
-              <Text style={S.fieldLabel}>Display Name</Text>
+              <Text style={S.fieldLabel}>Username</Text>
               <TextInput
                 style={S.input}
-                value={nameInput}
-                onChangeText={setNameInput}
-                placeholder="Full Name"
+                value={usernameInput}
+                onChangeText={setUsernameInput}
+                placeholder="Username"
                 placeholderTextColor={Colors.textMuted}
-              />
-
-              <Text style={S.fieldLabel}>Email / Username</Text>
-              <TextInput
-                style={S.input}
-                value={emailInput}
-                onChangeText={setEmailInput}
-                placeholder="Email Address"
-                placeholderTextColor={Colors.textMuted}
+                autoCapitalize="none"
               />
 
               <View style={[S.row, { gap: 8, marginTop: 6 }]}>
@@ -166,7 +148,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Preferences (moved from Settings) ── */}
+        {/* ── Preferences ── */}
         <Text style={S.sectionHeader}>Preferences</Text>
         <View style={S.card}>
           <View style={[S.settingRow, styles.settingRowBorder]}>
@@ -186,7 +168,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Account section (moved from Settings) ── */}
+        {/* ── Account section ── */}
         <Text style={S.sectionHeader}>Account</Text>
         <View style={S.card}>
           <TouchableOpacity
@@ -208,7 +190,6 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Profile card
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -259,8 +240,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primary,
   },
-
-  // Stats
   statsRow: {
     flexDirection: 'row',
     gap: 8,
@@ -293,8 +272,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-
-  // Settings row
   settingRowBorder: {
     borderBottomWidth: 0,
   },
@@ -306,8 +283,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // Logout
   logoutRow: {
     flexDirection: 'row',
     alignItems: 'center',

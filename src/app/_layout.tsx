@@ -1,4 +1,5 @@
 // src/app/_layout.tsx
+import { supabase } from '@/lib/supabase';
 import React, { useState } from 'react';
 import {
   View,
@@ -7,15 +8,14 @@ import {
   StyleSheet,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, usePathname, Tabs } from 'expo-router';
 import { TaskProvider } from '../context/task-context';
 import { UserProvider, useUser } from '../context/user-context';
-import { Colors, Radius, S } from '../styles/shared';
+import { Colors, Radius } from '../styles/shared';
 import { AppIcon, IconLabel } from '@/components/icon-label';
 
-// ─── Font Awesome CDN injection (web only) ───────────────────────
-// On native the icon labels carry the meaning; FA icons are a web enhancement.
 const NAV_ITEMS = [
   { route: '/', label: 'Home', faIcon: 'fa-house' },
   { route: '/assignments', label: 'Tasks', faIcon: 'fa-clipboard-list' },
@@ -23,40 +23,98 @@ const NAV_ITEMS = [
   { route: '/profile', label: 'Profile', faIcon: 'fa-circle-user' },
 ] as const;
 
-// ─── NavIcon ─────────────────────────────────────────────────────
 function MainLayout() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { user, setUser, isLoggedIn, setIsLoggedIn } = useUser();
-
-  const [emailInput, setEmailInput] = useState(user.email);
-  const [passwordInput, setPasswordInput] = useState('Gwapo');
+  const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleAuth = () => {
-    if (!emailInput || !passwordInput) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { setUser, isLoggedIn, isLoadingSession, signOut } = useUser();
+
+  const formatUsernameToEmail = (username: string) => {
+    const cleanUsername = username.trim().toLowerCase().replace(/\s+/g, '');
+    return `${cleanUsername}@app.com`;
+  };
+
+  const handleAuth = async () => {
+    const cleanUsername = usernameInput.trim();
+
+    if (!cleanUsername || !passwordInput || (isSignUp && !confirmPasswordInput)) {
       Alert.alert('Error', 'Please fill in all fields.');
       return;
     }
 
-    const derivedName = emailInput.includes('@')
-      ? emailInput.split('@')[0].toUpperCase()
-      : emailInput;
+    if (isSignUp && passwordInput !== confirmPasswordInput) {
+      Alert.alert('Error', 'Passwords do not match.');
+      return;
+    }
 
-    setUser({
-      name: derivedName || 'Mischi Jeda Jacinto Elumba',
-      email: emailInput,
-    });
+    if (isSignUp && passwordInput.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters.');
+      return;
+    }
 
-    setIsLoggedIn(true);
+    const generatedEmail = formatUsernameToEmail(cleanUsername);
+
+    try {
+      if (isSignUp) {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: generatedEmail,
+          password: passwordInput,
+          options: {
+            data: {
+              username: cleanUsername,
+              full_name: cleanUsername,
+            },
+          },
+        });
+        if (authError) throw authError;
+
+        if (authData.user) {
+          await supabase.from('profiles').upsert([
+            {
+              id: authData.user.id,
+              username: cleanUsername,
+            }
+          ]);
+        }
+
+        Alert.alert('Success', 'Account created! You can now log in.');
+        setIsSignUp(false);
+        setPasswordInput('');
+        setConfirmPasswordInput('');
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: generatedEmail,
+          password: passwordInput,
+        });
+        if (error) throw error;
+
+        setUser({
+          name: cleanUsername,
+          email: generatedEmail,
+        });
+      }
+    } catch (error: any) {
+      console.error('Auth error:', error);
+      Alert.alert('Authentication Error', error.message || 'Something went wrong.');
+    }
   };
 
-  // ── Login / Sign-up screen ──────────────────────────────────────
+  if (isLoadingSession) {
+    return (
+      <View style={styles.loginContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
   if (!isLoggedIn) {
     return (
       <View style={styles.loginContainer}>
         <View style={styles.loginCard}>
-          {/* Avatar */}
           <View style={styles.avatarContainer}>
             <AppIcon name="fa-circle-user" size={28} color={Colors.primary} />
           </View>
@@ -69,13 +127,15 @@ function MainLayout() {
           </Text>
 
           <View style={{ marginBottom: 16 }}>
-            <Text style={styles.label}>Email or Username</Text>
+            <Text style={styles.label}>Username</Text>
             <TextInput
               style={styles.input}
-              value={emailInput}
-              onChangeText={setEmailInput}
-              placeholder="Enter email or username"
+              value={usernameInput}
+              onChangeText={setUsernameInput}
+              placeholder="Enter unique username"
               placeholderTextColor={Colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
 
@@ -90,6 +150,20 @@ function MainLayout() {
               placeholderTextColor={Colors.textMuted}
             />
           </View>
+
+          {isSignUp && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={styles.label}>Confirm Password</Text>
+              <TextInput
+                style={styles.input}
+                value={confirmPasswordInput}
+                onChangeText={setConfirmPasswordInput}
+                secureTextEntry
+                placeholder="Confirm password"
+                placeholderTextColor={Colors.textMuted}
+              />
+            </View>
+          )}
 
           <TouchableOpacity style={styles.primaryButton} onPress={handleAuth}>
             <Text style={styles.primaryButtonText}>
@@ -112,15 +186,12 @@ function MainLayout() {
     );
   }
 
-  // ── Main app layout ─────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      {/* Screen content */}
       <View style={styles.content}>
         <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }} />
       </View>
 
-      {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
         {NAV_ITEMS.map((item) => {
           const isActive =
@@ -149,7 +220,6 @@ function MainLayout() {
   );
 }
 
-// ─── Root ─────────────────────────────────────────────────────────
 export default function RootLayout() {
   return (
     <UserProvider>
@@ -160,7 +230,6 @@ export default function RootLayout() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -170,8 +239,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-
-  // Bottom nav
   bottomNav: {
     height: 68,
     backgroundColor: Colors.navBg,
@@ -204,8 +271,6 @@ const styles = StyleSheet.create({
     color: Colors.navActiveIcon,
     fontWeight: '700',
   },
-
-  // Login screen
   loginContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -272,5 +337,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // inputContainer lives in S (shared), referenced directly
 });
