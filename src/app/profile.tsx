@@ -3,10 +3,12 @@ import { AppIcon } from "@/components/icon-label";
 import LoadingOverlay from "@/components/loading-overlay";
 import { useTasks } from "@/context/task-context";
 import { useUser } from "@/context/user-context";
+import { authService } from "@/services/authService";
 import { Colors, Radius, S } from "@/styles/shared";
 import { useState } from "react";
 import {
   Alert,
+  Modal, // <--- Added Modal
   ScrollView,
   StyleSheet,
   Text,
@@ -15,7 +17,6 @@ import {
   View,
 } from "react-native";
 
-// ─── Helper: icon (FA on web, emoji on native) ───────────────────
 function Icon({
   fa,
   emoji,
@@ -32,39 +33,58 @@ function Icon({
 }
 
 export default function ProfileScreen() {
-  const { user, setUser, setIsLoggedIn } = useUser();
+  const { user, signOut } = useUser();
   const { classes } = useTasks();
 
   // ── Profile editing ──────────────────────────────────────────────
   const [isEditing, setIsEditing] = useState(false);
-  const [nameInput, setNameInput] = useState(user.name);
-  const [emailInput, setEmailInput] = useState(user.email);
+  const [nameInput, setNameInput] = useState(user?.name || "");
+  const [emailInput, setEmailInput] = useState(user?.email || "");
   const [isSaving, setIsSaving] = useState(false);
+
+  // ── Logout Modal State ───────────────────────────────────────────
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // ── Stats ────────────────────────────────────────────────────────
   const activeClasses = classes.filter((c) => !c.isArchived);
 
-  const handleSaveProfile = () => {
-    if (!nameInput.trim() || !emailInput.trim()) return;
+  const handleSaveProfile = async () => {
+    if (!nameInput.trim() || !emailInput.trim() || !user) return;
     setIsSaving(true);
-    // Simulate a brief save delay so the loading overlay is visible
-    setTimeout(() => {
-      setUser({ name: nameInput, email: emailInput });
+
+    try {
+      await authService.updateProfile(user.id, {
+        name: nameInput,
+        email: emailInput,
+      });
       setIsEditing(false);
+    } catch (error) {
+      console.error("Failed to update profile", error);
+      Alert.alert("Error", "Could not save profile changes.");
+    } finally {
       setIsSaving(false);
-    }, 600);
+    }
   };
 
-  const handleLogout = () => {
-    Alert.alert("Log Out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log Out",
-        style: "destructive",
-        onPress: () => setIsLoggedIn(false),
-      },
-    ]);
+  // Triggers the custom modal
+  const handleLogoutPress = () => {
+    setShowLogoutModal(true);
   };
+
+  // Actually runs when they click "Log Out" inside the modal
+  const executeLogout = async () => {
+    setShowLogoutModal(false);
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Error logging out:", error);
+      setIsLoggingOut(false); // Only reset if it fails, otherwise screen changes
+    }
+  };
+
+  if (!user) return null;
 
   return (
     <View style={S.screen}>
@@ -106,7 +126,7 @@ export default function ProfileScreen() {
           {!isEditing ? (
             <View style={{ flex: 1 }}>
               <Text style={styles.userName} numberOfLines={1}>
-                {user.name}
+                {user.name || "User"}
               </Text>
               <Text style={styles.userEmail} numberOfLines={1}>
                 {user.email}
@@ -115,8 +135,8 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={styles.editBtn}
                 onPress={() => {
-                  setNameInput(user.name);
-                  setEmailInput(user.email);
+                  setNameInput(user.name || "");
+                  setEmailInput(user.email || "");
                   setIsEditing(true);
                 }}
               >
@@ -142,6 +162,7 @@ export default function ProfileScreen() {
                 onChangeText={setEmailInput}
                 placeholder="Email Address"
                 placeholderTextColor={Colors.textMuted}
+                editable={false}
               />
 
               <View style={[S.row, { gap: 8, marginTop: 6 }]}>
@@ -173,7 +194,7 @@ export default function ProfileScreen() {
         <View style={S.card}>
           <TouchableOpacity
             style={styles.logoutRow}
-            onPress={handleLogout}
+            onPress={handleLogoutPress}
             activeOpacity={0.7}
           >
             <Icon
@@ -187,14 +208,47 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* Loading overlay while saving */}
+      {/* ── Custom Logout Confirmation Modal ── */}
+      <Modal
+        visible={showLogoutModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Log Out</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to log out of your account?
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalCancelBtn]}
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalLogoutBtn]}
+                onPress={executeLogout}
+              >
+                <Text style={styles.modalLogoutText}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Loading overlays */}
       <LoadingOverlay visible={isSaving} message="Saving profile…" />
+      <LoadingOverlay visible={isLoggingOut} message="Logging out…" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Instagram-style clean app header top bar
   instaHeader: {
     backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
@@ -227,8 +281,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     color: Colors.textPrimary,
   },
-
-  // Profile card
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -279,8 +331,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Colors.primary,
   },
-
-  // Logout
   logoutRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -291,5 +341,65 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "bold",
     color: Colors.danger,
+  },
+
+  // ── New Modal Styles ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: Colors.cardBg,
+    borderRadius: Radius.lg,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  modalBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: Radius.sm,
+    minWidth: 90,
+    alignItems: "center",
+  },
+  modalCancelBtn: {
+    backgroundColor: Colors.inputBg,
+  },
+  modalCancelText: {
+    color: Colors.textSecondary,
+    fontWeight: "600",
+    fontSize: 15,
+  },
+  modalLogoutBtn: {
+    backgroundColor: Colors.danger,
+  },
+  modalLogoutText: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
+    fontSize: 15,
   },
 });

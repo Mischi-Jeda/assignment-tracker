@@ -1,6 +1,8 @@
-
 // src/context/task-context.tsx
-import React, { createContext, useContext, useState } from 'react';
+import { assignmentService } from "@/services/assignmentService";
+import { classService } from "@/services/classService";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useUser } from "./user-context";
 
 export interface Subtask {
   id: string;
@@ -13,8 +15,8 @@ export interface ClassOption {
   name: string;
   instructor: string;
   room?: string;
-  icon?: string;
-  color?: string;
+  icon?: string; // v2-only
+  color?: string; // v2-only
   isArchived?: boolean;
 }
 
@@ -25,209 +27,212 @@ export interface Task {
   instructor: string;
   description?: string;
   subtasks: Subtask[];
-  dueDate: string;
-  status: 'incomplete' | 'completed' | 'archived';
+  dueDate: string; // YYYY-MM-DD
+  status: "incomplete" | "completed" | "archived";
 }
 
 interface TaskContextType {
   tasks: Task[];
   classes: ClassOption[];
-  addTask: (task: Omit<Task, 'id' | 'status'>) => void;
-  updateTask: (updatedTask: Task) => void;
-  deleteTask: (id: string) => void;
-  toggleTaskStatus: (id: string, currentStatus: Task['status']) => void;
-  toggleSubtask: (taskId: string, subtaskId: string) => void;
-  addClass: (newClass: Omit<ClassOption, 'id'>) => void;
-  updateClass: (updatedClass: ClassOption) => void;
-  archiveClass: (classId: string) => void;
-  deleteClass: (classId: string) => void;
+  addTask: (task: Omit<Task, "id" | "status">) => Promise<void>;
+  updateTask: (updatedTask: Task) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  toggleTaskStatus: (
+    id: string,
+    currentStatus: Task["status"],
+  ) => Promise<void>;
+  toggleSubtask: (taskId: string, subtaskId: string) => Promise<void>;
+  addClass: (newClass: Omit<ClassOption, "id">) => Promise<void>;
+  updateClass: (updatedClass: ClassOption) => Promise<void>;
+  archiveClass: (classId: string) => Promise<void>;
+  deleteClass: (classId: string) => Promise<void>;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
-export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [classes, setClasses] = useState<ClassOption[]>([
-    {
-      id: '1',
-      name: 'Quantitative Research',
-      instructor: 'Ed Neil Maratas',
-      room: 'Room 302',
-      icon: 'fa-bookmark',
-      isArchived: false,
-    },
-    {
-      id: '2',
-      name: 'Advance Database Systems',
-      instructor: 'Mark Mascardo',
-      room: 'Lab 2',
-      icon: 'fa-clipboard-list',
-      isArchived: false,
-    },
-    {
-      id: '3',
-      name: 'Information Systems Architecture',
-      instructor: 'Department Faculty',
-      room: 'Online',
-      icon: 'fa-graduation-cap',
-      isArchived: false,
-    },
-    {
-      id: '4',
-      name: 'Data Structures and Algorithms',
-      instructor: 'Previous Instructor',
-      room: 'Lab 1',
-      icon: 'fa-list',
-      isArchived: true,
-    },
-  ]);
+export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const { isLoggedIn } = useUser();
 
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      title: 'Laboratory Exercise 3',
-      subject: 'Quantitative Research',
-      instructor: 'Ed Neil Maratas',
-      description: 'Complete data collection section and summary analysis.',
-      subtasks: [
-        { id: 's1', title: 'Gather survey samples', completed: true },
-        { id: 's2', title: 'Calculate mean and standard deviation', completed: false },
-      ],
-      dueDate: '2026-10-14',
-      status: 'incomplete',
-    },
-    {
-      id: '2',
-      title: 'Activity 4 - DB Triggers',
-      subject: 'Advance Database Systems',
-      instructor: 'Mark Mascardo',
-      description: 'Write PL/pgSQL BEFORE and AFTER trigger functions.',
-      subtasks: [],
-      dueDate: '2026-10-15',
-      status: 'incomplete',
-    },
-    {
-      id: '3',
-      title: 'Midterm Project Proposal',
-      subject: 'Information Systems Architecture',
-      instructor: 'Department Faculty',
-      description: 'System architectural overview draft.',
-      subtasks: [],
-      dueDate: '2026-10-01',
-      status: 'completed',
-    },
-  ]);
-
-  const addTask = (newTaskData: Omit<Task, 'id' | 'status'>) => {
-    const newTask: Task = {
-      ...newTaskData,
-      id: Date.now().toString(),
-      status: 'incomplete',
-    };
-
-    setTasks((prev) => [newTask, ...prev]);
-  };
-
-  const updateTask = (updatedTask: Task) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === updatedTask.id ? updatedTask : t))
-    );
-  };
-
-  const deleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  const toggleTaskStatus = (id: string, currentStatus: Task['status']) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === id) {
-          let nextStatus: Task['status'] = 'completed';
-
-          if (currentStatus === 'incomplete') nextStatus = 'completed';
-          else if (currentStatus === 'completed') nextStatus = 'archived';
-          else nextStatus = 'incomplete';
-
-          return { ...t, status: nextStatus };
-        }
-
-        return t;
-      })
-    );
-  };
-
-  const toggleSubtask = (taskId: string, subtaskId: string) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === taskId) {
-          return {
-            ...t,
-            subtasks: t.subtasks.map((s) =>
-              s.id === subtaskId ? { ...s, completed: !s.completed } : s
-            ),
-          };
-        }
-
-        return t;
-      })
-    );
-  };
-
-  // Class Management Handlers
-  const addClass = (newClass: Omit<ClassOption, 'id'>) => {
-    const createdClass: ClassOption = {
-      ...newClass,
-      id: Date.now().toString(),
-      isArchived: false,
-    };
-
-    setClasses((prev) => [...prev, createdClass]);
-  };
-
-  const updateClass = (updatedClass: ClassOption) => {
-    setClasses((prev) =>
-      prev.map((c) => (c.id === updatedClass.id ? updatedClass : c))
-    );
-
-    // Sync instructor/name updates to associated tasks
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.subject === updatedClass.name) {
-          return { ...t, instructor: updatedClass.instructor };
-        }
-
-        return t;
-      })
-    );
-  };
-
-  const archiveClass = (classId: string) => {
-    const targetClass = classes.find((c) => c.id === classId);
-    if (!targetClass) return;
-
-    // Toggle class archived status
-    setClasses((prev) =>
-      prev.map((c) =>
-        c.id === classId ? { ...c, isArchived: !c.isArchived } : c
-      )
-    );
-
-    // Archive all tasks under this subject automatically
-    if (!targetClass.isArchived) {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.subject === targetClass.name ? { ...t, status: 'archived' } : t
-        )
-      );
+  // ---- from main: backend load, gated on auth, cleared on logout ----
+  const loadData = async () => {
+    try {
+      const [fetchedClasses, fetchedTasks] = await Promise.all([
+        classService.getClasses(),
+        assignmentService.getAssignments(),
+      ]);
+      setClasses(fetchedClasses);
+      setTasks(fetchedTasks);
+    } catch (error) {
+      console.error("Error loading Supabase data:", error);
     }
   };
 
-  const deleteClass = (classId: string) => {
+  useEffect(() => {
+    if (isLoggedIn) {
+      loadData();
+    } else {
+      setTasks([]);
+      setClasses([]);
+    }
+  }, [isLoggedIn]);
+
+  // ---------------- Tasks ----------------
+  const addTask = async (newTaskData: Omit<Task, "id" | "status">) => {
+    try {
+      const created = await assignmentService.addTask(newTaskData); // main
+      setTasks((prev) => [created, ...prev]);
+    } catch (error) {
+      console.error("Error adding task:", error);
+    }
+  };
+
+  const updateTask = async (updatedTask: Task) => {
+    try {
+      await assignmentService.updateTask(updatedTask); // main
+      setTasks((prev) =>
+        prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)),
+      );
+    } catch (error) {
+      console.error("Error updating task:", error);
+    }
+  };
+
+  const deleteTask = async (id: string) => {
+    try {
+      await assignmentService.deleteTask(id); // main
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+    } catch (error) {
+      console.error("Error deleting task:", error);
+    }
+  };
+
+  // v2's status cycle logic, persisted through updateTask
+  const toggleTaskStatus = async (
+    id: string,
+    currentStatus: Task["status"],
+  ) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+
+    let nextStatus: Task["status"] = "completed";
+    if (currentStatus === "incomplete") nextStatus = "completed";
+    else if (currentStatus === "completed") nextStatus = "archived";
+    else nextStatus = "incomplete";
+
+    await updateTask({ ...task, status: nextStatus });
+  };
+
+  // v2's subtask toggle logic, persisted through updateTask
+  const toggleSubtask = async (taskId: string, subtaskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const updatedSubtasks = task.subtasks.map((s) =>
+      s.id === subtaskId ? { ...s, completed: !s.completed } : s,
+    );
+    await updateTask({ ...task, subtasks: updatedSubtasks });
+  };
+
+  // ---------------- Classes ----------------
+  const addClass = async (newClassData: Omit<ClassOption, "id">) => {
+    try {
+      const created = await classService.addClass(newClassData); // main
+
+      // 🔥 FIX: Merge the returned DB data (which has the ID) with the local data (which has the color/icon)
+      const completeClass = { ...newClassData, ...created };
+
+      setClasses((prev) => [...prev, completeClass]);
+    } catch (error) {
+      console.error("Error adding class:", error);
+    }
+  }; // 🔥 FIXED: This missing closing brace was causing the syntax error!
+
+  const updateClass = async (updatedClass: ClassOption) => {
+    try {
+      await classService.updateClass(updatedClass); // main
+      setClasses((prev) =>
+        prev.map((c) => (c.id === updatedClass.id ? updatedClass : c)),
+      );
+
+      // v2 behavior preserved: sync instructor to tasks whose subject matches.
+      // Matches on the NEW name, exactly like v2 (so a rename does NOT re-sync — see note below).
+      const affected = tasks.filter((t) => t.subject === updatedClass.name);
+      if (affected.length > 0) {
+        const patched = affected.map((t) => ({
+          ...t,
+          instructor: updatedClass.instructor,
+        }));
+        await Promise.all(patched.map((t) => assignmentService.updateTask(t)));
+        setTasks((prev) =>
+          prev.map((t) => patched.find((p) => p.id === t.id) ?? t),
+        );
+      }
+    } catch (error) {
+      console.error("Error updating class:", error);
+    }
+  };
+
+  const archiveClass = async (classId: string) => {
+    const targetClass = classes.find((c) => c.id === classId);
+    if (!targetClass) return;
+
+    const becomingArchived = !targetClass.isArchived;
+
+    try {
+      const updatedClass = { ...targetClass, isArchived: becomingArchived };
+      await classService.updateClass(updatedClass); // main (no dedicated archive endpoint)
+      setClasses((prev) =>
+        prev.map((c) => (c.id === classId ? updatedClass : c)),
+      );
+
+      // v2 behavior preserved: archiving a class also archives its tasks.
+      // (Un-archiving does NOT restore them, matching v2.)
+      if (becomingArchived) {
+        const toArchive = tasks
+          .filter(
+            (t) => t.subject === targetClass.name && t.status !== "archived",
+          )
+          .map((t) => ({ ...t, status: "archived" as const }));
+
+        if (toArchive.length > 0) {
+          await Promise.all(
+            toArchive.map((t) => assignmentService.updateTask(t)),
+          );
+          setTasks((prev) =>
+            prev.map((t) => toArchive.find((a) => a.id === t.id) ?? t),
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error archiving class:", error);
+    }
+  };
+
+  const deleteClass = async (classId: string) => {
     const targetClass = classes.find((c) => c.id === classId);
 
-    setClasses((prev) => prev.filter((c) => c.id !== classId));
+    try {
+      await classService.deleteClass(classId); // main
+      setClasses((prev) => prev.filter((c) => c.id !== classId));
 
-    if (targetClass) {
-      setTasks((prev) => prev.filter((t) => t.subject !== targetClass.name));
+      // v2 behavior preserved: deleting a class deletes its tasks.
+      if (targetClass) {
+        const toDelete = tasks.filter((t) => t.subject === targetClass.name);
+        if (toDelete.length > 0) {
+          await Promise.all(
+            toDelete.map((t) => assignmentService.deleteTask(t.id)),
+          );
+          setTasks((prev) =>
+            prev.filter((t) => t.subject !== targetClass.name),
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting class:", error);
     }
   };
 
@@ -254,14 +259,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useTasks = () => {
   const context = useContext(TaskContext);
-
-  if (!context) {
-    throw new Error('useTasks must be used within a TaskProvider');
-  }
-
+  if (!context) throw new Error("useTasks must be used within a TaskProvider");
   return context;
 };
 
-// Export helper for active classes dropdowns across home/assignments
 export const ACTIVE_CLASSES = (classesList: ClassOption[]) =>
   classesList.filter((c) => !c.isArchived);

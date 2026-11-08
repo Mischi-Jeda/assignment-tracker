@@ -71,7 +71,8 @@ export default function ClassesScreen() {
   const [confirmConfig, setConfirmConfig] = useState({
     title: "",
     message: "",
-    type: "save" as "save" | "archive" | "delete",
+    // 🔥 Added "error"
+    type: "save" as "save" | "archive" | "delete" | "error",
     onConfirm: () => {},
   });
 
@@ -96,7 +97,18 @@ export default function ClassesScreen() {
   };
 
   const promptSaveClass = () => {
-    if (!className.trim() || !instructor.trim()) return;
+    // 🔥 Error Modal Logic
+    if (!className.trim() || !instructor.trim()) {
+      setConfirmConfig({
+        title: "Missing Fields",
+        message:
+          "Please fill in both the class name and instructor before saving.",
+        type: "error",
+        onConfirm: () => setConfirmModalVisible(false),
+      });
+      setConfirmModalVisible(true);
+      return;
+    }
 
     setConfirmConfig({
       title: editingClass ? "Save Changes" : "Add New Subject",
@@ -484,12 +496,16 @@ export default function ClassesScreen() {
                 { justifyContent: "flex-end", gap: 10, marginTop: 16 },
               ]}
             >
-              <TouchableOpacity
-                style={S.btnCancel}
-                onPress={() => setConfirmModalVisible(false)}
-              >
-                <Text style={S.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              {/* 🔥 Hide Cancel button if it's an error */}
+              {confirmConfig.type !== "error" && (
+                <TouchableOpacity
+                  style={S.btnCancel}
+                  onPress={() => setConfirmModalVisible(false)}
+                >
+                  <Text style={S.btnCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={
                   confirmConfig.type === "delete" ? S.btnDanger : S.btnPrimary
@@ -497,7 +513,12 @@ export default function ClassesScreen() {
                 onPress={confirmConfig.onConfirm}
               >
                 <Text style={S.btnWhiteText}>
-                  {confirmConfig.type === "delete" ? "Confirm" : "Save"}
+                  {/* 🔥 Change button text based on type */}
+                  {confirmConfig.type === "delete"
+                    ? "Confirm"
+                    : confirmConfig.type === "error"
+                      ? "Got it"
+                      : "Save"}
                 </Text>
               </TouchableOpacity>
             </View>

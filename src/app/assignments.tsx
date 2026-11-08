@@ -33,7 +33,7 @@ function FaIcon({
 
 export default function AssignmentsScreen() {
   const { user } = useUser();
-  const displayName = user.name ? user.name.split(" ")[0] : "User";
+  const displayName = user?.name ? user.name.split(" ")[0] : "User";
 
   const { tasks, classes, addTask, updateTask, deleteTask, toggleTaskStatus } =
     useTasks();
@@ -58,7 +58,8 @@ export default function AssignmentsScreen() {
   const [confirmConfig, setConfirmConfig] = useState({
     title: "",
     message: "",
-    type: "save" as "save" | "delete",
+    // 🔥 Added "error" type
+    type: "save" as "save" | "delete" | "error",
     onConfirm: () => {},
   });
 
@@ -152,7 +153,18 @@ export default function AssignmentsScreen() {
     setModalSubtasks(modalSubtasks.filter((s) => s.id !== id));
 
   const handleSaveNewTask = () => {
-    if (!newTitle.trim()) return;
+    // 🔥 Add the validation check here
+    if (!newTitle.trim()) {
+      setConfirmConfig({
+        title: "Missing Task Name",
+        message: "Please enter a task name before saving.",
+        type: "error",
+        onConfirm: () => setConfirmModalVisible(false),
+      });
+      setConfirmModalVisible(true);
+      return;
+    }
+
     setIsSaving(true);
     setTimeout(() => {
       addTask({
@@ -211,6 +223,19 @@ export default function AssignmentsScreen() {
 
   const promptSaveEditedTask = () => {
     if (!editingTask) return;
+
+    // 🔥 Add the validation check here
+    if (!editingTask.title.trim()) {
+      setConfirmConfig({
+        title: "Missing Task Name",
+        message: "Please enter a task name before saving your changes.",
+        type: "error",
+        onConfirm: () => setConfirmModalVisible(false),
+      });
+      setConfirmModalVisible(true);
+      return;
+    }
+
     setConfirmConfig({
       title: "Save Changes",
       message:
@@ -987,20 +1012,31 @@ export default function AssignmentsScreen() {
                 { justifyContent: "flex-end", gap: 10, marginTop: 16 },
               ]}
             >
-              <TouchableOpacity
-                style={S.btnCancel}
-                onPress={() => setConfirmModalVisible(false)}
-              >
-                <Text style={S.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              {/* 🔥 Hide Cancel button if it's an error */}
+              {confirmConfig.type !== "error" && (
+                <TouchableOpacity
+                  style={S.btnCancel}
+                  onPress={() => setConfirmModalVisible(false)}
+                >
+                  <Text style={S.btnCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
+              
               <TouchableOpacity
                 style={
-                  confirmConfig.type === "delete" ? S.btnDanger : S.btnPrimary
+                  confirmConfig.type === "delete"
+                    ? S.btnDanger
+                    : S.btnPrimary
                 }
                 onPress={confirmConfig.onConfirm}
               >
                 <Text style={S.btnWhiteText}>
-                  {confirmConfig.type === "delete" ? "Confirm" : "Save"}
+                  {/* 🔥 Change button text based on type */}
+                  {confirmConfig.type === "delete"
+                    ? "Confirm"
+                    : confirmConfig.type === "error"
+                      ? "Got it"
+                      : "Save"}
                 </Text>
               </TouchableOpacity>
             </View>

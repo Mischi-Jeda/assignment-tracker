@@ -72,7 +72,8 @@ export default function HomeScreen() {
   const [confirmConfig, setConfirmConfig] = useState({
     title: "",
     message: "",
-    type: "save" as "save" | "delete",
+    // 🔥 Add "error" to the allowed types
+    type: "save" as "save" | "delete" | "error",
     onConfirm: () => {},
   });
 
@@ -161,7 +162,18 @@ export default function HomeScreen() {
     setModalSubtasks((prev) => prev.filter((s) => s.id !== id));
 
   const handleSaveNewTask = () => {
-    if (!newTitle.trim()) return;
+    // 🔥 Trigger the error modal if title is blank
+    if (!newTitle.trim()) {
+      setConfirmConfig({
+        title: "Missing Task Name",
+        message: "Please enter a task name before saving.",
+        type: "error",
+        onConfirm: () => setConfirmModalVisible(false), // Just closes the modal
+      });
+      setConfirmModalVisible(true);
+      return;
+    }
+
     setIsSaving(true);
     setTimeout(() => {
       addTask({
@@ -220,6 +232,20 @@ export default function HomeScreen() {
 
   const promptSaveEditedTask = () => {
     if (!editingTask) return;
+
+    // 🔥 Add this check right here
+    if (!editingTask.title.trim()) {
+      setConfirmConfig({
+        title: "Missing Task Name",
+        message: "Please enter a task name before saving your changes.",
+        type: "error",
+        onConfirm: () => setConfirmModalVisible(false),
+      });
+      setConfirmModalVisible(true);
+      return; // Stops the function so the "Save Changes" modal doesn't appear
+    }
+
+    // Your original save confirmation logic
     setConfirmConfig({
       title: "Save Changes",
       message:
@@ -1007,6 +1033,7 @@ export default function HomeScreen() {
       </Modal>
 
       {/* ══ Confirmation Modal Overlay ══ */}
+      {/* ══ Confirmation Modal Overlay ══ */}
       <Modal
         visible={confirmModalVisible}
         transparent
@@ -1024,12 +1051,16 @@ export default function HomeScreen() {
                 { justifyContent: "flex-end", gap: 10, marginTop: 16 },
               ]}
             >
-              <TouchableOpacity
-                style={S.btnCancel}
-                onPress={() => setConfirmModalVisible(false)}
-              >
-                <Text style={S.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              {/* 🔥 Hide Cancel button if it's an error */}
+              {confirmConfig.type !== "error" && (
+                <TouchableOpacity
+                  style={S.btnCancel}
+                  onPress={() => setConfirmModalVisible(false)}
+                >
+                  <Text style={S.btnCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={
                   confirmConfig.type === "delete" ? S.btnDanger : S.btnPrimary
@@ -1037,7 +1068,12 @@ export default function HomeScreen() {
                 onPress={confirmConfig.onConfirm}
               >
                 <Text style={S.btnWhiteText}>
-                  {confirmConfig.type === "delete" ? "Delete" : "Confirm"}
+                  {/* 🔥 Change button text based on type */}
+                  {confirmConfig.type === "delete"
+                    ? "Delete"
+                    : confirmConfig.type === "error"
+                      ? "Got it"
+                      : "Confirm"}
                 </Text>
               </TouchableOpacity>
             </View>
