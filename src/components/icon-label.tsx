@@ -1,20 +1,25 @@
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
+
+import { Colors } from "@/styles/shared";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import {
-  faBell,
   faArrowUpRightFromSquare,
+  faBell,
   faBookmark,
   faBoxArchive,
+  faCalendarDay,
+  faCalendarDays,
   faChalkboardUser,
   faChevronRight,
   faCircleCheck,
   faCircleQuestion,
   faCircleUser,
   faClipboardList,
+  faChevronDown,
+  faChevronUp,
   faGear,
   faGraduationCap,
-  faHouse,
   faHourglassHalf,
+  faHouse,
   faList,
   faLocationDot,
   faMessage,
@@ -25,36 +30,53 @@ import {
   faSquareCheck,
   faUser,
   faXmark,
-} from '@fortawesome/free-solid-svg-icons';
-import React from 'react';
-import { StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
-import { Colors } from '@/styles/shared';
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
+import {
+  StyleProp,
+  StyleSheet,
+  Text,
+  TextStyle,
+  View,
+  ViewStyle,
+} from "react-native";
 
 const icons: Record<string, IconDefinition> = {
-  'fa-bell': faBell,
-  'fa-arrow-up-right-from-square': faArrowUpRightFromSquare,
-  'fa-bookmark': faBookmark,
-  'fa-box-archive': faBoxArchive,
-  'fa-chalkboard-user': faChalkboardUser,
-  'fa-chevron-right': faChevronRight,
-  'fa-circle-check': faCircleCheck,
-  'fa-circle-user': faCircleUser,
-  'fa-clipboard-list': faClipboardList,
-  'fa-graduation-cap': faGraduationCap,
-  'fa-gear': faGear,
-  'fa-house': faHouse,
-  'fa-hourglass-half': faHourglassHalf,
-  'fa-list': faList,
-  'fa-location-dot': faLocationDot,
-  'fa-message': faMessage,
-  'fa-pen': faPen,
-  'fa-plus': faPlus,
-  'fa-right-from-bracket': faRightFromBracket,
-  'fa-square': faSquare,
-  'fa-square-check': faSquareCheck,
-  'fa-user': faUser,
-  'fa-xmark': faXmark,
+  "fa-arrow-up-right-from-square": faArrowUpRightFromSquare,
+  "fa-bell": faBell,
+  "fa-bookmark": faBookmark,
+  "fa-box-archive": faBoxArchive,
+  "fa-calendar-day": faCalendarDay,
+  "fa-calendar-days": faCalendarDays,
+  "fa-chalkboard-user": faChalkboardUser,
+  "fa-chevron-right": faChevronRight,
+  "fa-chevron-down": faChevronDown,
+  "fa-chevron-up": faChevronUp,
+  "fa-circle-check": faCircleCheck,
+  "fa-circle-user": faCircleUser,
+  "fa-clipboard-list": faClipboardList,
+  "fa-graduation-cap": faGraduationCap,
+  "fa-gear": faGear,
+  "fa-house": faHouse,
+  "fa-hourglass-half": faHourglassHalf,
+  "fa-list": faList,
+  "fa-location-dot": faLocationDot,
+  "fa-message": faMessage,
+  "fa-pen": faPen,
+  "fa-plus": faPlus,
+  "fa-right-from-bracket": faRightFromBracket,
+  "fa-square": faSquare,
+  "fa-square-check": faSquareCheck,
+  "fa-user": faUser,
+  "fa-xmark": faXmark,
 };
+
+function normalizeIconName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/^(fa-solid|fa-regular|fa-brands|fas|far|fab)\s+/, "");
+}
 
 export function AppIcon({
   name,
@@ -65,7 +87,15 @@ export function AppIcon({
   size?: number;
   color?: string;
 }) {
-  return <FontAwesomeIcon icon={icons[name] ?? faCircleQuestion} size={size} color={color} />;
+  const normalizedName = normalizeIconName(name);
+
+  return (
+    <FontAwesomeIcon
+      icon={icons[normalizedName] ?? faBookmark}
+      size={size}
+      color={color}
+    />
+  );
 }
 
 export function IconLabel({
@@ -92,6 +122,14 @@ export function IconLabel({
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', justifyContent: 'center', gap: 3 },
-  label: { fontSize: 10, fontWeight: '600', textAlign: 'center' },
+  container: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: "600",
+    textAlign: "center",
+  },
 });

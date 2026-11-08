@@ -1,3 +1,4 @@
+
 // src/context/task-context.tsx
 import React, { createContext, useContext, useState } from 'react';
 
@@ -12,6 +13,8 @@ export interface ClassOption {
   name: string;
   instructor: string;
   room?: string;
+  icon?: string;
+  color?: string;
   isArchived?: boolean;
 }
 
@@ -22,7 +25,7 @@ export interface Task {
   instructor: string;
   description?: string;
   subtasks: Subtask[];
-  dueDate: string; // YYYY-MM-DD
+  dueDate: string;
   status: 'incomplete' | 'completed' | 'archived';
 }
 
@@ -44,10 +47,38 @@ const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [classes, setClasses] = useState<ClassOption[]>([
-    { id: '1', name: 'Quantitative Research', instructor: 'Ed Neil Maratas', room: 'Room 302', isArchived: false },
-    { id: '2', name: 'Advance Database Systems', instructor: 'Mark Mascardo', room: 'Lab 2', isArchived: false },
-    { id: '3', name: 'Information Systems Architecture', instructor: 'Department Faculty', room: 'Online', isArchived: false },
-    { id: '4', name: 'Data Structures and Algorithms', instructor: 'Previous Instructor', room: 'Lab 1', isArchived: true },
+    {
+      id: '1',
+      name: 'Quantitative Research',
+      instructor: 'Ed Neil Maratas',
+      room: 'Room 302',
+      icon: 'fa-bookmark',
+      isArchived: false,
+    },
+    {
+      id: '2',
+      name: 'Advance Database Systems',
+      instructor: 'Mark Mascardo',
+      room: 'Lab 2',
+      icon: 'fa-clipboard-list',
+      isArchived: false,
+    },
+    {
+      id: '3',
+      name: 'Information Systems Architecture',
+      instructor: 'Department Faculty',
+      room: 'Online',
+      icon: 'fa-graduation-cap',
+      isArchived: false,
+    },
+    {
+      id: '4',
+      name: 'Data Structures and Algorithms',
+      instructor: 'Previous Instructor',
+      room: 'Lab 1',
+      icon: 'fa-list',
+      isArchived: true,
+    },
   ]);
 
   const [tasks, setTasks] = useState<Task[]>([
@@ -92,11 +123,14 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: Date.now().toString(),
       status: 'incomplete',
     };
+
     setTasks((prev) => [newTask, ...prev]);
   };
 
   const updateTask = (updatedTask: Task) => {
-    setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+    setTasks((prev) =>
+      prev.map((t) => (t.id === updatedTask.id ? updatedTask : t))
+    );
   };
 
   const deleteTask = (id: string) => {
@@ -108,11 +142,14 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       prev.map((t) => {
         if (t.id === id) {
           let nextStatus: Task['status'] = 'completed';
+
           if (currentStatus === 'incomplete') nextStatus = 'completed';
           else if (currentStatus === 'completed') nextStatus = 'archived';
           else nextStatus = 'incomplete';
+
           return { ...t, status: nextStatus };
         }
+
         return t;
       })
     );
@@ -129,6 +166,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ),
           };
         }
+
         return t;
       })
     );
@@ -141,17 +179,22 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: Date.now().toString(),
       isArchived: false,
     };
+
     setClasses((prev) => [...prev, createdClass]);
   };
 
   const updateClass = (updatedClass: ClassOption) => {
-    setClasses((prev) => prev.map((c) => (c.id === updatedClass.id ? updatedClass : c)));
+    setClasses((prev) =>
+      prev.map((c) => (c.id === updatedClass.id ? updatedClass : c))
+    );
+
     // Sync instructor/name updates to associated tasks
     setTasks((prev) =>
       prev.map((t) => {
         if (t.subject === updatedClass.name) {
           return { ...t, instructor: updatedClass.instructor };
         }
+
         return t;
       })
     );
@@ -163,20 +206,26 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Toggle class archived status
     setClasses((prev) =>
-      prev.map((c) => (c.id === classId ? { ...c, isArchived: !c.isArchived } : c))
+      prev.map((c) =>
+        c.id === classId ? { ...c, isArchived: !c.isArchived } : c
+      )
     );
 
     // Archive all tasks under this subject automatically
     if (!targetClass.isArchived) {
       setTasks((prev) =>
-        prev.map((t) => (t.subject === targetClass.name ? { ...t, status: 'archived' } : t))
+        prev.map((t) =>
+          t.subject === targetClass.name ? { ...t, status: 'archived' } : t
+        )
       );
     }
   };
 
   const deleteClass = (classId: string) => {
     const targetClass = classes.find((c) => c.id === classId);
+
     setClasses((prev) => prev.filter((c) => c.id !== classId));
+
     if (targetClass) {
       setTasks((prev) => prev.filter((t) => t.subject !== targetClass.name));
     }
@@ -205,7 +254,11 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useTasks = () => {
   const context = useContext(TaskContext);
-  if (!context) throw new Error('useTasks must be used within a TaskProvider');
+
+  if (!context) {
+    throw new Error('useTasks must be used within a TaskProvider');
+  }
+
   return context;
 };
 
